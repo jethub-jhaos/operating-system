@@ -1,0 +1,161 @@
+name: Beta build haos on request
+
+on:
+  workflow_call:
+    inputs:
+      buildbranch:
+        description: 'Branch for build: dev | rel | any'
+        required: true
+        type: string
+        default: 'dev'
+    secrets:
+      token:
+        required: true
+      SSHKEY:
+        required: true
+      SSHKNOWNHOSTS:
+        required: true
+      GPG_SIGNING_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+      HAOS_CERT:
+        required: true
+      HAOS_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      buildbranch:
+        description: 'Branch for build: dev | rel | any'
+        required: true
+        default: 'dev'
+
+jobs:
+  build:
+    name: Build images
+    runs-on: [self-hosted, hirsute]
+    if: ${{ github.repository_owner == 'jethub-homeassistant' }}
+    env:
+      BUILDBRANCH:  ${{ inputs.buildbranch == null && github.event.inputs.buildbranch || inputs.buildbranch }}
+    strategy:
+      fail-fast: true
+      matrix:
+        boardname: [jethub_j80, jethub_j100]
+
+    steps:
+      - name: Clean up
+        shell: bash
+        run: |
+          sudo chown -R $USER:$USER . || true
+          [[ -d haos ]] && rm -rf haos || true
+          [[ -d build ]] && sudo rm -rf build || true
+          [[ -d tools ]] && sudo rm -rf tools || true
+
+      - name: Checkout haos repository
+        uses: actions/checkout@v2
+        with:
+          repository: jethub-homeassistant/operating-system
+          path: haos
+          ref: ${{ env.BUILDBRANCH }}
+          submodules: true
+
+      - name: Checkout builder repository
+        uses: actions/checkout@v2
+        with:
+          repository: jethome-ru/homeassistant-builder
+          path: build
+          ref: main
+          clean: false
+
+      - name: Checkout jethome-tools repository
+        uses: actions/checkout@v2
+        with:
+          repository: jethome-ru/jethome-tools
+          path: tools
+          ref: convert
+
+      - name: SSH clean
+        run: |
+          tuncate -s 0 ~/.ssh/known_hosts
+
+      - name: Setup ssh key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSHKEY }}
+          known_hosts: ${{ secrets.SSHKNOWNHOSTS }}
+          if_key_exists: replace
+
+      - name: Set env variables
+        run: |
+         echo "JETHOME_CI_DEBS_DIR=dev" >> $GITHUB_ENV
+         echo "JETHOME_CI_FIRMW_DIR=dev" >> $GITHUB_ENV
+         echo "SUDO_USER=actions" >>$GITHUB_ENV
+         echo "TERM=xterm" >> $GITHUB_ENV
+
+      - name: Prepare image
+        run: |
+          echo -n "$HAOS_CERT" >haos/cert.pem
+          echo -n "$HAOS_KEY" >haos/key.pem
+          # time to do magic
+          cp -f build/ca.crt haos/buildroot-external/ota/rel-ca.pem
+          cp -f build/ca.crt haos/buildroot-external/ota/dev-ca.pem
+          cp -rf build/buildroot-external/ haos/ || true
+          cp -rf build/buildroot/ haos/ || true
+          cp -rf build/patches/ haos/ || true
+          cp -f build/patch.sh haos/ || true
+          cd haos
+          ./patch.sh
+        env:
+          HAOS_CERT: ${{ secrets.HAOS_CERT }}
+          HAOS_KEY: ${{ secrets.HAOS_KEY }}
+
+      - name: Build image
+        run: |
+          cd haos
+          GITHUB_WORKSPACE="$(realpath .)"
+          version_dev="dev$(date --utc +'%Y%m%d')"
+          echo "Development version \"${version_dev}\""
+          echo "DEVVER=${version_dev}" >>$GITHUB_ENV
+          echo "::set-output name=version_dev::${version_dev}"
+          echo "builddir: $GITHUB_WORKSPACE"
+          boardrunner="aarch64-runner"
+          sudo docker build -t haos-builder .
+          BUILDER_UID="$(id -u)"
+          BUILDER_GID="$(id -g)"
+          DOCKER_CMD="sudo docker run --rm --privileged -v "${GITHUB_WORKSPACE}:/build" -e BUILDER_UID="${BUILDER_UID}" -e BUILDER_GID="${BUILDER_GID}" -v "${boardrunner}-build-cache:/cache" haos-builder"
+          echo ${DOCKER_CMD} make VERSION_DEV=${version_dev} ${boardname}
+          ${DOCKER_CMD} make VERSION_DEV=${version_dev} ${boardname}
+        env:
+          boardname: ${{ matrix.boardname }}
+
+      - name: Convert image to burn
+        run: |
+          source ./haos/buildroot-external/meta
+          DVER="${VERSION_MAJOR}.${VERSION_BUILD}.${DEVVER}"
+          cd tools
+          if [[ "${boardname}" == "jethub_j100" ]]; then
+            board="j100"
+            boardc="d1"
+          elif [[ "${boardname}" == "jethub_j80" ]]; then
+            board="j80"
+            boardc="h1"
+          else
+            echo Error in boardname ${boardname}
+            exit -1
+          fi
+          [[ -d ../haos/output/build/amlogic-boot-fip-7ff0004e0e4d261ba81334a2f46302bd06704aca/fip/u-boot.bin ]] && cp ../haos/output/build/amlogic-boot-fip-7ff0004e0e4d261ba81334a2f46302bd06704aca/fip/u-boot.bin src/${board}/u-boot.haos.bin
+          ./convert.sh ../haos/release/haos_jethub-${board}-${DVER}.img.xz ${boardc} haos compress ../haos/output/build/amlogic-boot-fip-7ff0004e0e4d261ba81334a2f46302bd06704aca/fip/u-boot.bin
+        env:
+          boardname: ${{ matrix.boardname }}
+
+      - name: Upload images
+        run: |
+         rsync -avr haos/release/ repo@update.jethome.ru:/var/www/update.jethome.ru/haos/$JETHOME_CI_FIRMW_DIR/
+         rsync -avr tools/output/ repo@update.jethome.ru:/var/www/update.jethome.ru/haos/$JETHOME_CI_FIRMW_DIR/burn/
+
+
+      - name: Clean image
+        run: |
+          rm haos/cert.pem
+          rm haos/key.pem
+
