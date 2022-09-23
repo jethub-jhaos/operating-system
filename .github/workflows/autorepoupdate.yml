@@ -22,6 +22,7 @@ jobs:
           fetch-depth: 0
           repository: jethub-homeassistant/operating-system
           path: rebase_haos
+          token: ${{ secrets.HA_UPDATE_TOKEN }}
           ref: dev
       - name: Rebase haos repository (dev)
         run: |
@@ -45,6 +46,7 @@ jobs:
           fetch-depth: 0
           repository: jethub-homeassistant/operating-system
           path: rebase_haos
+          token: ${{ secrets.HA_UPDATE_TOKEN }}
           ref: dev-jethub
       - name: Rebase jethub haos repository (dev-jethub)
         run: |
