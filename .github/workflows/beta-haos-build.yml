@@ -34,7 +34,7 @@ jobs:
   build:
     name: Build images
     runs-on: [self-hosted, hirsute]
-    if: ${{ github.repository_owner == 'jethub-homeassistant' }}
+    if: ${{ github.repository_owner == 'jethub-jhaos' }}
     env:
       BUILDBRANCH:  ${{ inputs.buildbranch == null && github.event.inputs.buildbranch || inputs.buildbranch }}
     strategy:
@@ -54,7 +54,7 @@ jobs:
       - name: Checkout haos repository
         uses: actions/checkout@v2
         with:
-          repository: jethub-homeassistant/operating-system
+          repository: jethub-jhaos/operating-system
           path: haos
           ref: ${{ env.BUILDBRANCH }}
           submodules: true

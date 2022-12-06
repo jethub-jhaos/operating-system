@@ -1,0 +1,22 @@
+name-template: JetHub Home Assistant OS $RESOLVED_VERSION
+tag-template: $RESOLVED_VERSION
+version-template: "$MAJOR.$MINOR"
+categories:
+  - title: 'Home Assistant Operating System'
+    label: 'os'
+  - title: 'Build System'
+    label: 'build'
+  - title: 'JetHub D1/D1+'
+    label: 'board/jethubj100'
+  - title: 'JetHub H1'
+    label: 'board/jethubj80'
+filter-by-commitish: true
+template: |
+  ## Changes
+
+  $CHANGES
+version-resolver:
+  major:
+    labels:
+      - 'major'
+  default: minor
