@@ -60,7 +60,7 @@ jobs:
 
             return { "board": buildBoards }
       - name: check matrix
-        run: echo ${{ steps.generate_matrix.outputs.result }}
+        run: echo "${{ steps.generate_matrix.outputs.result }}"
 
   build:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-dev-build') }}
@@ -87,10 +87,13 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
+          path: jhaos
           ref: ${{ fromJSON(steps.generate_gitref.outputs.result).ref }}
 
       - name: Build container
-        run: docker build -t jhaos-builder .
+        run: |
+          cd jhaos
+          docker build -t jhaos-builder .
 
       - name: 'Add release PKI certs'
         env:
