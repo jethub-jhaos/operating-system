@@ -114,6 +114,8 @@ jobs:
       - name: Build
         run: |
           cd jhaos
+          pwd
+          ls -la
           BUILDER_UID="$(id -u)"
           BUILDER_GID="$(id -g)"
           docker run --rm --privileged -v "${GITHUB_WORKSPACE}:/build" \
