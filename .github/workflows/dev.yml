@@ -93,6 +93,8 @@ jobs:
       - name: Build container
         run: |
           cd jhaos
+          pwd
+          ls -la
           docker build -t jhaos-builder .
 
       - name: 'Add release PKI certs'
