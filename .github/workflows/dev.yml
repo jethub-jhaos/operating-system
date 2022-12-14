@@ -113,8 +113,14 @@ jobs:
 
       - name: Build
         run: |
+          cd jhaos
           BUILDER_UID="$(id -u)"
           BUILDER_GID="$(id -g)"
+          echo docker run --rm --privileged -v "${GITHUB_WORKSPACE}/jhaos:/build" \
+            -e BUILDER_UID="${BUILDER_UID}" -e BUILDER_GID="${BUILDER_GID}" \
+            -v "${{ matrix.board.runner }}-build-cache:/cache" \
+            -v "/build/output" \
+            jhaos-builder make BUILDDIR=/build VERSION_DEV=${{ needs.prepare.outputs.version_dev }} ${{ matrix.board.defconfig }}
           docker run --rm --privileged -v "${GITHUB_WORKSPACE}/jhaos:/build" \
             -e BUILDER_UID="${BUILDER_UID}" -e BUILDER_GID="${BUILDER_GID}" \
             -v "${{ matrix.board.runner }}-build-cache:/cache" \
