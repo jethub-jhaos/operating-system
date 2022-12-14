@@ -103,6 +103,7 @@ jobs:
           RAUC_CERTIFICATE: ${{ secrets.RAUC_CERTIFICATE }}
           RAUC_PRIVATE_KEY: ${{ secrets.RAUC_PRIVATE_KEY }}
         run: |
+          cd jhaos
           if [ -z "${RAUC_CERTIFICATE}" ] || [ -z "${RAUC_PRIVATE_KEY}" ]; then
             echo "No PKI certificate found, skipping"
             exit 0
@@ -112,6 +113,7 @@ jobs:
 
       - name: Build
         run: |
+          cd jhaos
           BUILDER_UID="$(id -u)"
           BUILDER_GID="$(id -g)"
           docker run --rm --privileged -v "${GITHUB_WORKSPACE}:/build" \
