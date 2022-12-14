@@ -93,6 +93,7 @@ jobs:
       - name: Build container
         run: |
           cd jhaos
+          # To remove !!!!FIXME!!!!
           pwd
           ls -la
           docker build -t jhaos-builder .
@@ -108,7 +109,6 @@ jobs:
           fi
           echo -e "-----BEGIN CERTIFICATE-----\n${RAUC_CERTIFICATE}\n-----END CERTIFICATE-----" > cert.pem
           echo -e "-----BEGIN PRIVATE KEY-----\n${RAUC_PRIVATE_KEY}\n-----END PRIVATE KEY-----" > key.pem
-          exit 1
 
       - name: Build
         run: |
@@ -119,6 +119,7 @@ jobs:
             -v "${{ matrix.board.runner }}-build-cache:/cache" \
             -v "/build/output" \
             jhaos-builder make BUILDDIR=/build VERSION_DEV=${{ needs.prepare.outputs.version_dev }} ${{ matrix.board.defconfig }}
+          exit 2
 
       - name: Upload images
         uses: burnett01/rsync-deployments@5.2
