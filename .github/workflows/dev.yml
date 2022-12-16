@@ -98,6 +98,9 @@ jobs:
           ls -la
           docker build -t jhaos-builder .
 
+      - name: Clean old files
+        run: sudo rm -rf jhaos/output
+
       - name: 'Add release PKI certs'
         env:
           RAUC_CERTIFICATE: ${{ secrets.RAUC_CERTIFICATE }}
